@@ -7,6 +7,7 @@ line. CalVer tags, canary identities and receipt namespaces are not versions.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import subprocess
 from functools import cmp_to_key
@@ -14,6 +15,7 @@ from functools import cmp_to_key
 from hermes_cli.update_channel import STABLE_TAG_RE
 from scripts.releases.semver import compare
 
+logger = logging.getLogger(__name__)
 SEED = "0.21.4"
 BUMPS = ("major", "minor", "patch")
 
@@ -73,9 +75,13 @@ def published_stable_identity(repository: str, *, base_url: str | None = None,
     The protected channel names the newest release that shipped bundles. The
     GitHub releases also name one that skipped them. The newer of the two wins.
     """
-    found = published_channel_identity(
-        repository, "stable", base_url=base_url, reader_type=reader_type,
-    )
+    found = None
+    try:
+        found = published_channel_identity(
+            repository, "stable", base_url=base_url, reader_type=reader_type,
+        )
+    except Exception as exc:
+        logger.warning("Failed to resolve stable channel for %s: %s", repository, exc)
     if found is not None and version_from_tag("v" + found[0]) is None:
         raise ValueError("Stable channel has an invalid source version")
     candidates = [identity for identity in (found, published_release_identity(repository, run))
